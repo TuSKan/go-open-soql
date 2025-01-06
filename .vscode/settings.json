@@ -3,5 +3,10 @@
         "analyses": {
             "shadow": true
         }
-    }
+    },
+    "cSpell.words": [
+        "shellyln",
+        "soql",
+        "takenoco"
+    ]
 }
