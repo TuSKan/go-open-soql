@@ -27,20 +27,10 @@ func NewSoqlBuilder(q *types.SoqlQuery) *SoqlBuilder {
 }
 
 func Select(cols ...string) *SoqlBuilder {
-	return NewSoqlBuilder(nil).Select(cols...)
+	return NewSoqlBuilder(nil).Select(SelectCols(cols...))
 }
 
-func (b *SoqlBuilder) Select(cols ...string) *SoqlBuilder {
-	var fields SoqlFields
-	for i := range cols {
-		field, err := parser.ParseSelectField(cols[i])
-		if err != nil {
-			panic(err)
-		}
-		field.ColIndex = i
-		field.ColumnId = i + 1
-		fields = append(fields, *field)
-	}
+func (b *SoqlBuilder) Select(fields SoqlFields) *SoqlBuilder {
 	b.SoqlQuery.Fields = fields
 	return b
 }

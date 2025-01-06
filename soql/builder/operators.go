@@ -5,6 +5,22 @@ type Alias struct {
 	Alias string
 }
 
+func SelectCols(cols ...string) (fields SoqlFields) {
+	return fields.SelectCols(cols...)
+}
+
+func Min(field, alias string) (fields SoqlFields) {
+	return fields.Min(field, alias)
+}
+
+func Max(field, alias string) (fields SoqlFields) {
+	return fields.Max(field, alias)
+}
+
+func Count(field, alias string) (fields SoqlFields) {
+	return fields.Count(field, alias)
+}
+
 func As(name, alias string) Alias {
 	return Alias{Name: name, Alias: alias}
 }
