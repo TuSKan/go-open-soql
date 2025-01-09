@@ -1,7 +1,10 @@
 package builder
 
 import (
+	"fmt"
 	"strings"
+
+	"slices"
 
 	"github.com/shellyln/go-open-soql-parser/soql/parser"
 	"github.com/shellyln/go-open-soql-parser/soql/parser/types"
@@ -32,14 +35,18 @@ func binaryConditionOp(input string, op types.SoqlConditionOpcode, val any) (bin
 func (w SoqlWhere) And(left, right SoqlWhere) SoqlWhere {
 	w = append(w, left...)
 	w = append(w, right...)
-	w = append(w, types.SoqlCondition{Opcode: types.SoqlConditionOpcode_And})
+	if len(left) > 0 && len(right) > 0 {
+		w = append(w, types.SoqlCondition{Opcode: types.SoqlConditionOpcode_And})
+	}
 	return w
 }
 
 func (w SoqlWhere) Or(left, right SoqlWhere) SoqlWhere {
 	w = append(w, left...)
 	w = append(w, right...)
-	w = append(w, types.SoqlCondition{Opcode: types.SoqlConditionOpcode_Or})
+	if len(left) > 0 && len(right) > 0 {
+		w = append(w, types.SoqlCondition{Opcode: types.SoqlConditionOpcode_Or})
+	}
 	return w
 }
 
@@ -98,23 +105,58 @@ func (w SoqlWhere) Excludes(field string, value string) SoqlWhere {
 }
 
 func (w SoqlWhere) SOQL(b *strings.Builder) {
-	if len(w) >= 2 {
-		switch w[len(w)-1].Opcode {
-		case types.SoqlConditionOpcode_And:
-			SoqlWhere(w[:len(w)/2]).SOQL(b)
-			b.WriteString(" AND ")
-			SoqlWhere(w[len(w)/2 : len(w)-1]).SOQL(b)
-		case types.SoqlConditionOpcode_Or:
-			SoqlWhere(w[:len(w)/2]).SOQL(b)
-			b.WriteString(" OR ")
-			SoqlWhere(w[len(w)/2 : len(w)-1]).SOQL(b)
-		case types.SoqlConditionOpcode_Not:
-			b.WriteString(" NOT ")
-			SoqlWhere(w[:len(w)-1]).SOQL(b)
-		default:
-			b.WriteString(" " + soqlFieldInfoBuilder(w[len(w)-3].Value))
-			b.WriteString(" " + soqlConditionOpcodeBuilder(w[len(w)-1].Opcode))
-			b.WriteString(" " + soqlFieldInfoBuilder(w[len(w)-2].Value))
+	for i := 0; i < len(w); i++ {
+		if w[i].Opcode != types.SoqlConditionOpcode_FieldInfo {
+			if len(w[:i+1]) == 2 {
+				w[i+0] = types.SoqlCondition{
+					Opcode: types.SoqlConditionOpcode_FieldInfo,
+					Value: types.SoqlFieldInfo{
+						Type: types.SoqlFieldInfo_FieldSet,
+						Name: []string{fmt.Sprintf(" (%s %s)",
+							soqlConditionOpcodeBuilder(w[i].Opcode),
+							soqlFieldInfoBuilder(w[i-1].Value))},
+					},
+				}
+				w = slices.Delete(w, i-1, i)
+				i--
+			} else if len(w[:i+1]) > 2 {
+				w[i+0] = types.SoqlCondition{
+					Opcode: types.SoqlConditionOpcode_FieldInfo,
+					Value: types.SoqlFieldInfo{
+						Type: types.SoqlFieldInfo_FieldSet,
+						Name: []string{fmt.Sprintf(" (%s %s %s)",
+							soqlFieldInfoBuilder(w[i-1].Value),
+							soqlConditionOpcodeBuilder(w[i+0].Opcode),
+							soqlFieldInfoBuilder(w[i-2].Value))},
+					},
+				}
+				w = slices.Delete(w, i-2, i)
+				i = i - 2
+			}
+		} else if len(w[i:]) >= 1 && w[i+1].Opcode != types.SoqlConditionOpcode_FieldInfo {
+			w[i+0] = types.SoqlCondition{
+				Opcode: types.SoqlConditionOpcode_FieldInfo,
+				Value: types.SoqlFieldInfo{
+					Type: types.SoqlFieldInfo_FieldSet,
+					Name: []string{fmt.Sprintf(" %s %s",
+						soqlConditionOpcodeBuilder(w[i+1].Opcode),
+						soqlFieldInfoBuilder(w[i+0].Value))},
+				},
+			}
+			w = slices.Delete(w, i+1, i+2)
+		} else if len(w[i:]) >= 2 && w[i+2].Opcode != types.SoqlConditionOpcode_FieldInfo {
+			w[i+0] = types.SoqlCondition{
+				Opcode: types.SoqlConditionOpcode_FieldInfo,
+				Value: types.SoqlFieldInfo{
+					Type: types.SoqlFieldInfo_FieldSet,
+					Name: []string{fmt.Sprintf(" %s %s %s",
+						soqlFieldInfoBuilder(w[i+0].Value),
+						soqlConditionOpcodeBuilder(w[i+2].Opcode),
+						soqlFieldInfoBuilder(w[i+1].Value))},
+				},
+			}
+			w = slices.Delete(w, i+1, i+3)
 		}
 	}
+	b.WriteString(soqlFieldInfoBuilder(w[0].Value))
 }

@@ -1,6 +1,8 @@
 package builder
 
 import (
+	"strings"
+
 	"github.com/shellyln/go-open-soql-parser/soql/parser"
 	"github.com/shellyln/go-open-soql-parser/soql/parser/types"
 )
@@ -11,8 +13,7 @@ func (f SoqlFields) SelectCols(cols ...string) (fields SoqlFields) {
 		if err != nil {
 			panic(err)
 		}
-		field.ColIndex = i
-		field.ColumnId = i + 1
+		field.ColumnId = i
 		fields = append(fields, *field)
 	}
 	return
@@ -55,4 +56,17 @@ func (f SoqlFields) Count(field, alias string) SoqlFields {
 		AliasName:  alias,
 		Parameters: []types.SoqlFieldInfo{fieldP},
 	})
+}
+
+func (f SoqlFields) SOQL(b *strings.Builder) {
+	if len(f) > 0 {
+		b.WriteString("SELECT ")
+		var fields []string
+		for i := range f {
+			fields = append(fields, soqlFieldInfoBuilder(f[i]))
+		}
+		b.WriteString(strings.Join(fields, ", "))
+	} else {
+		b.WriteString("SELECT FIELDS(ALL) ")
+	}
 }

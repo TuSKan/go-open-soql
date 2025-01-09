@@ -2,32 +2,29 @@ package builder
 
 import (
 	"strings"
+	"time"
 
 	"github.com/shellyln/go-open-soql-parser/soql/parser"
+	"github.com/shellyln/go-open-soql-parser/soql/parser/postprocess"
 	"github.com/shellyln/go-open-soql-parser/soql/parser/types"
 )
 
 type SoqlBuilder struct {
-	*types.SoqlQuery
+	types.SoqlQuery
 }
 
-func NewSoqlBuilder(q *types.SoqlQuery) *SoqlBuilder {
-	if q == nil {
-		q = &types.SoqlQuery{}
-	} else {
-		q.Meta = nil
-		q.QueryId = 0
-		for i := range q.From {
-			q.From[i].PerObjectQuery = nil
-			q.From[i].ViewId = 0
-			q.From[i].Key = ""
+func NewSoqlBuilder(q types.SoqlQuery) *SoqlBuilder {
+	if q.Meta == nil {
+		q.Meta = &types.SoqlQueryMeta{
+			Version: "0.9",
+			Date:    time.Now().UTC(),
 		}
 	}
 	return &SoqlBuilder{q}
 }
 
 func Select(cols ...string) *SoqlBuilder {
-	return NewSoqlBuilder(nil).Select(SelectCols(cols...))
+	return NewSoqlBuilder(types.SoqlQuery{}).Select(SelectCols(cols...))
 }
 
 func (b *SoqlBuilder) Select(fields SoqlFields) *SoqlBuilder {
@@ -90,17 +87,22 @@ func (b *SoqlBuilder) Having(cond ...types.SoqlCondition) *SoqlBuilder {
 	return b
 }
 
-func (f SoqlFields) SOQL(b *strings.Builder) {
-	if len(f) > 0 {
-		b.WriteString("SELECT ")
-		var fields []string
-		for i := range f {
-			fields = append(fields, soqlFieldInfoBuilder(f[i]))
-		}
-		b.WriteString(strings.Join(fields, ", "))
-	} else {
-		b.WriteString("SELECT FIELDS(ALL) ")
+func (b *SoqlBuilder) Limit(limit int64) *SoqlBuilder {
+	b.SoqlQuery.Parent.OffsetAndLimit.Limit = limit
+	return b
+}
+
+func (b *SoqlBuilder) Offset(offset int64) *SoqlBuilder {
+	b.SoqlQuery.OffsetAndLimit.Offset = offset
+	return b
+}
+
+func (b *SoqlBuilder) Normalize(cond ...types.SoqlCondition) *SoqlBuilder {
+	if err := postprocess.Normalize(&b.SoqlQuery); err != nil {
+		panic(err)
 	}
+	b.SoqlQuery.Meta.ElapsedTime = time.Since(b.SoqlQuery.Meta.Date)
+	return b
 }
 
 func (f SoqlFrom) SOQL(b *strings.Builder) {
