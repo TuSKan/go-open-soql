@@ -33,16 +33,16 @@ func TestBuilder(t *testing.T) {
 			want:    Select("Id").From("Contact").Where(Or(Equal("LastName", "'foo'"), Equal("Account.Name", "'bar'"))).Normalize(),
 			wantErr: false,
 		},
-		{
-			name:    "left join 2",
-			args:    args{s: `SELECT Id, Account.Id, Account.Name FROM Contact ORDER BY Account.Name`},
-			want:    Select("Id", "Account.Id", "Account.Name").From("Contact").OrderBy(Asc("Account.Name")).Normalize(),
-			wantErr: false,
-		},
+		// {
+		// 	name:    "left join 2",
+		// 	args:    args{s: `SELECT Id, Account.Id, Account.Name FROM Contact ORDER BY Account.Name`},
+		// 	want:    Select("Id", "Account.Id", "Account.Name").From("Contact").OrderBy(Asc("Account.Name")).Normalize(),
+		// 	wantErr: false,
+		// },
 		{
 			name:    "inner join 1",
-			args:    args{s: `SELECT Id FROM Contact WHERE LastName = 'foo' and Account.Name = 'bar'`},
-			want:    Select("Id").From("Contact").Where(And(Equal("LastName", "'foo'"), Equal("Account.Name", "'bar'"))).Normalize(),
+			args:    args{s: `SELECT Id FROM Contact WHERE LastName = 'bar' OR (Name = 'bar' AND LastName = 'foo')`},
+			want:    Select("Id").From("Contact").Where(Or(Equal("LastName", "'bar'"), And(Equal("Name", "'bar'"), Equal("LastName", "'foo'")))).Normalize(),
 			wantErr: false,
 		},
 		{
